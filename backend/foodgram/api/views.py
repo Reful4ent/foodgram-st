@@ -13,8 +13,11 @@ from rest_framework.permissions import (
 from .serializers import (
     UserSerializer,
     IngredientSerializer,
+    RecipeSerializer
 )
 from ingredients.models import Ingredient
+from recipes.models import Recipe
+from .permission import IsAuthorOrReadOnly
 
 
 User = get_user_model()
@@ -71,3 +74,16 @@ class CustomUserViewSet(UserViewSet):
             )
 
         return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class RecipeViewSet(viewsets.ModelViewSet):
+    queryset = Recipe.objects.all()
+    pagination_class = StandardResultsSetPagination
+    serializer_class = RecipeSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
+    filter_backends = [DjangoFilterBackend]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
