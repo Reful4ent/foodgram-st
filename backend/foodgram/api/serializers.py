@@ -162,6 +162,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     image = Base64ImageField(required=True, allow_null=False)
     author = UserSerializer(read_only=True)
     ingredients = RecipeIngredientCreateSerializer(many=True, write_only=True)
+    is_favorited = serializers.SerializerMethodField('get_is_favorited')
     amount = serializers.IntegerField(
         write_only=True,
         required=False,
@@ -180,8 +181,18 @@ class RecipeSerializer(serializers.ModelSerializer):
                   'image',
                   'text',
                   'cooking_time',
-                  'amount')
+                  'amount',
+                  'is_favorited')
         read_only_fields = ["author"]
+
+    def get_is_favorited(self, obj):
+        user = self.context['request'].user
+        if user:
+            return (
+                user.is_authenticated
+                and user.user_recipe.filter(recipe__exact=obj).exists()
+            )
+        return False
 
     def validate(self, attrs):
         ingredients = self.initial_data.get('ingredients')
