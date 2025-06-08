@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from ingredients.models import Ingredient
 from recipes.models import Recipe, RecipeIngredient
-from users.models import Subscription, Favorite
+from users.models import Subscription, Favorite, ShoppingCart
 from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer as BaseUserCreateSerializer
 from django.core.files.base import ContentFile
@@ -163,6 +163,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     ingredients = RecipeIngredientCreateSerializer(many=True, write_only=True)
     is_favorited = serializers.SerializerMethodField('get_is_favorited')
+    is_in_shopping_cart = serializers.SerializerMethodField('get_is_in_shopping_cart')
     amount = serializers.IntegerField(
         write_only=True,
         required=False,
@@ -182,7 +183,8 @@ class RecipeSerializer(serializers.ModelSerializer):
                   'text',
                   'cooking_time',
                   'amount',
-                  'is_favorited')
+                  'is_favorited',
+                  'is_in_shopping_cart')
         read_only_fields = ["author"]
 
     def get_is_favorited(self, obj):
@@ -194,9 +196,18 @@ class RecipeSerializer(serializers.ModelSerializer):
             )
         return False
 
+    def get_is_in_shopping_cart(self, obj):
+        user = self.context['request'].user
+        if user:
+            return (
+                user.is_authenticated
+                and user.user_cart.filter(recipe__exact=obj).exists()
+            )
+        return False
+
     def validate(self, attrs):
         ingredients = self.initial_data.get('ingredients')
-        if len(ingredients) == 0:
+        if ingredients is None or len(ingredients) == 0:
             raise serializers.ValidationError(
                 'Список ингредиентов не должен быть пустым!.')
 
@@ -253,4 +264,10 @@ class RecipeSerializer(serializers.ModelSerializer):
 class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Favorite
+        fields = ('user', 'recipe')
+
+
+class ShoppingCartSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShoppingCart
         fields = ('user', 'recipe')

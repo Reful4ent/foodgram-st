@@ -99,3 +99,28 @@ class Favorite(models.Model):
     def __str__(self):
         return (f"{self.user.username} в избранном "
                 f"{self.recipe.name}")
+
+
+class ShoppingCart(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='user_cart',
+        verbose_name='Пользователь'
+    )
+    recipe = models.ForeignKey(
+        'recipes.Recipe',
+        on_delete=models.CASCADE,
+        related_name="user_in_shopping_carts",
+        verbose_name="Рецепт",
+    )
+
+    class Meta:
+        verbose_name = 'Список покупок'
+        verbose_name_plural = 'Список покупок'
+        unique_together = ('user', 'recipe')
+        ordering = ['id']
+
+    def __str__(self):
+        return (f"{self.user.username} в корзине "
+                f"{self.recipe.name}")
