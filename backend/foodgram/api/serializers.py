@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from ingredients.models import Ingredient
 from recipes.models import Recipe, RecipeIngredient
+from users.models import Subscription
 from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer as BaseUserCreateSerializer
 from django.core.files.base import ContentFile
@@ -36,7 +37,17 @@ class Base64ImageField(serializers.ImageField):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    is_subscribed = serializers.SerializerMethodField('get_is_subscribed')
     avatar = Base64ImageField(required=False, allow_null=True)
+    
+    def get_is_subscribed(self, obj):
+        user = self.context['request'].user
+        if user:
+            return (
+                user.is_authenticated
+                and user.subscribers.filter(subscribed__exact=obj).exists()
+            )
+        return False
 
     class Meta:
         model = User
@@ -60,6 +71,70 @@ class UserCreateSerializer(BaseUserCreateSerializer):
                   'password')
 
 
+class SubscribeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subscription
+        fields = ("user", "subscribed")
+
+    def validate(self, data):
+        user_id = data.get('user')
+        subscribed_id = data.get('subscribed')
+        
+        if user_id == subscribed_id:
+            raise serializers.ValidationError('Нельзя подписаться на себя')
+        
+        if Subscription.objects.filter(user_id=user_id,
+                                       subscribed_id=subscribed_id).exists():
+            raise serializers.ValidationError("Вы уже подписаны "
+                                              "на этого пользователя")
+        
+        return data
+    
+
+class UserSubscriptionRecipeSerializer(serializers.ModelSerializer):
+    recipes = serializers.SerializerMethodField('get_recipes')
+    recipes_count = serializers.SerializerMethodField('get_recipies_count')
+
+    class Meta:
+        model = User
+        fields = ('id',
+                  'email',
+                  'username',
+                  'first_name',
+                  'last_name',
+                  'is_subscribed',
+                  'avatar',
+                  'recipes',
+                  'recipes_count')
+
+    def get_recipes(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return []
+
+        recipes_queryset = obj.recipes.all()
+
+        limit = request.query_params.get("recipes_limit")
+        if limit and limit.isdigit():
+            recipes_queryset = recipes_queryset[:int(limit)]
+
+        return RecipeShortSerializer(
+            recipes_queryset,
+            many=True,
+            context={'request': request}
+        ).data
+
+    def get_recipies_count(self, obj):
+        return obj.recipes.count()
+
+
+class RecipeShortSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Recipe
+        fields = ("id", "name", "image", "cooking_time")
+
+
 class RecipeIngredientSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source='ingredient.id')
     name = serializers.ReadOnlyField(source='ingredient.name')
@@ -80,7 +155,7 @@ class RecipeIngredientCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RecipeIngredient
-        fields = ['id', 'amount']
+        fields = ('id', 'amount')
 
 
 class RecipeSerializer(serializers.ModelSerializer):

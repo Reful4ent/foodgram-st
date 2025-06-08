@@ -10,11 +10,15 @@ from rest_framework.permissions import (
     IsAuthenticated,
     AllowAny
 )
+from django.shortcuts import get_object_or_404
 from .serializers import (
     UserSerializer,
     IngredientSerializer,
-    RecipeSerializer
+    RecipeSerializer,
+    UserSubscriptionRecipeSerializer,
+    SubscribeSerializer
 )
+from users.models import Subscription
 from ingredients.models import Ingredient
 from recipes.models import Recipe
 from .permission import IsAuthorOrReadOnly
@@ -65,6 +69,7 @@ class CustomUserViewSet(UserViewSet):
                 request.user,
                 data=request.data,
                 partial=True,
+                context={'request': request}
             )
             user_serializer.is_valid(raise_exception=True)
             user_serializer.save()
@@ -74,6 +79,59 @@ class CustomUserViewSet(UserViewSet):
             )
 
         return Response(status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(methods=['post', 'delete'], detail=True,
+            permission_classes=[IsAuthenticated])
+    def subscribe(self, request, id):
+        user = get_object_or_404(User, id=id)
+        subscribe = request.user.subscribers.filter(subscribed=user)
+        if request.method == 'POST':
+            subscribeSerializer = SubscribeSerializer(
+                data={
+                    'user': request.user.id,
+                    'subscribed': user.id
+                },
+                context={
+                    'request': request
+                }
+            )
+            subscribeSerializer.is_valid(raise_exception=True)
+            subscribeSerializer.save()
+
+            userSubRecipeSerializer = UserSubscriptionRecipeSerializer(
+                user,
+                context={
+                    'request': request,
+                    'recipes_limit': request.query_params.get('recipes_limit')
+                }
+            )
+            return Response(userSubRecipeSerializer.data,
+                            status=status.HTTP_201_CREATED)
+        else:
+            if subscribe.exists():
+                subscribe.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['get'], detail=False,
+            permission_classes=[IsAuthenticated])
+    def subscriptions(self, request):
+
+        subscribed_users_ids = Subscription.objects.filter(
+            user=request.user
+        ).values_list('subscribed_id', flat=True)
+        queryset = User.objects.filter(id__in=subscribed_users_ids)
+
+        pages = self.paginate_queryset(queryset)
+        serializer = UserSubscriptionRecipeSerializer(
+            pages,
+            many=True,
+            context={
+                'request': request
+            }
+        )
+
+        return self.get_paginated_response(serializer.data)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
