@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'recipes',
     'users',
     'ingredients',
+    'django_filters',
     'django.contrib.staticfiles',
 ]
 
