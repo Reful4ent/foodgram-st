@@ -74,3 +74,28 @@ class Subscription(models.Model):
     def __str__(self):
         return (f"{self.user.username} подписан "
                 f"на {self.subscribed.username}")
+
+
+class Favorite(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='user_recipe',
+        verbose_name='Пользователь'
+    )
+    recipe = models.ForeignKey(
+        'recipes.Recipe',
+        on_delete=models.CASCADE,
+        related_name='users_in_favorite',
+        verbose_name='Пользователь'
+    )
+
+    class Meta:
+        verbose_name = 'Избранное'
+        verbose_name_plural = 'Избранное'
+        unique_together = ('user', 'recipe')
+        ordering = ['id']
+
+    def __str__(self):
+        return (f"{self.user.username} в избранном "
+                f"{self.recipe.name}")

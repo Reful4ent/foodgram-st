@@ -12,11 +12,13 @@ from rest_framework.permissions import (
 )
 from django.shortcuts import get_object_or_404
 from .serializers import (
+    RecipeShortSerializer,
     UserSerializer,
     IngredientSerializer,
     RecipeSerializer,
     UserSubscriptionRecipeSerializer,
-    SubscribeSerializer
+    SubscribeSerializer,
+    FavoriteSerializer
 )
 from users.models import Subscription
 from ingredients.models import Ingredient
@@ -145,3 +147,36 @@ class RecipeViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+    @action(methods=['post', 'delete'], detail=True,
+            permission_classes=[IsAuthenticated])
+    def favorite(self, request, pk):
+        recipe = get_object_or_404(Recipe, id=pk)
+        favorite = request.user.user_recipe.filter(recipe=recipe)
+        if request.method == 'POST':
+            if favorite.exists():
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            favoriteSerializer = FavoriteSerializer(
+                data={
+                    'user': request.user.id,
+                    'recipe': recipe.id
+                },
+                context={
+                    'request': request
+                }
+            )
+            favoriteSerializer.is_valid(raise_exception=True)
+            favoriteSerializer.save()
+            recipeShortSerializer = RecipeShortSerializer(
+                recipe,
+                context={
+                    'request': request
+                }
+            )
+            return Response(recipeShortSerializer.data,
+                            status=status.HTTP_201_CREATED)
+        else:
+            if favorite.exists():
+                favorite.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            return Response(status=status.HTTP_400_BAD_REQUEST)

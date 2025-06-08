@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from ingredients.models import Ingredient
 from recipes.models import Recipe, RecipeIngredient
-from users.models import Subscription
+from users.models import Subscription, Favorite
 from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer as BaseUserCreateSerializer
 from django.core.files.base import ContentFile
@@ -39,7 +39,7 @@ class Base64ImageField(serializers.ImageField):
 class UserSerializer(serializers.ModelSerializer):
     is_subscribed = serializers.SerializerMethodField('get_is_subscribed')
     avatar = Base64ImageField(required=False, allow_null=True)
-    
+
     def get_is_subscribed(self, obj):
         user = self.context['request'].user
         if user:
@@ -79,17 +79,17 @@ class SubscribeSerializer(serializers.ModelSerializer):
     def validate(self, data):
         user_id = data.get('user')
         subscribed_id = data.get('subscribed')
-        
+
         if user_id == subscribed_id:
             raise serializers.ValidationError('Нельзя подписаться на себя')
-        
+
         if Subscription.objects.filter(user_id=user_id,
                                        subscribed_id=subscribed_id).exists():
             raise serializers.ValidationError("Вы уже подписаны "
                                               "на этого пользователя")
-        
+
         return data
-    
+
 
 class UserSubscriptionRecipeSerializer(serializers.ModelSerializer):
     recipes = serializers.SerializerMethodField('get_recipes')
@@ -188,7 +188,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         if len(ingredients) == 0:
             raise serializers.ValidationError(
                 'Список ингредиентов не должен быть пустым!.')
-        
+
         ingredients_ids = [ingredient['id']
                            for ingredient in ingredients]
 
@@ -229,7 +229,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             self.push_ingredients(instance, ingredients_data)
 
         return instance
-    
+
     def to_representation(self, instance):
         representation = super().to_representation(instance)
 
@@ -238,3 +238,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         ).data
         return representation
 
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favorite
+        fields = ('user', 'recipe')
