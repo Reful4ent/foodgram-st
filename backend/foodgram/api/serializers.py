@@ -44,7 +44,7 @@ class UserSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         if user:
             return (
-                user.is_authenticated
+                user.is_authenticated and not user.is_blocked
                 and user.subscribers.filter(subscribed__exact=obj).exists()
             )
         return False
@@ -105,6 +105,7 @@ class UserSubscriptionRecipeSerializer(serializers.ModelSerializer):
                   'is_subscribed',
                   'avatar',
                   'recipes',
+                  'is_blocked'
                   'recipes_count')
 
     def get_recipes(self, obj):
@@ -163,7 +164,9 @@ class RecipeSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     ingredients = RecipeIngredientCreateSerializer(many=True, write_only=True)
     is_favorited = serializers.SerializerMethodField('get_is_favorited')
-    is_in_shopping_cart = serializers.SerializerMethodField('get_is_in_shopping_cart')
+    is_in_shopping_cart = serializers.SerializerMethodField(
+        'get_is_in_shopping_cart'
+    )
     amount = serializers.IntegerField(
         write_only=True,
         required=False,
@@ -191,7 +194,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         if user:
             return (
-                user.is_authenticated
+                user.is_authenticated and not user.is_blocked
                 and user.user_recipe.filter(recipe__exact=obj).exists()
             )
         return False
@@ -200,7 +203,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         if user:
             return (
-                user.is_authenticated
+                user.is_authenticated and not user.is_blocked
                 and user.user_cart.filter(recipe__exact=obj).exists()
             )
         return False

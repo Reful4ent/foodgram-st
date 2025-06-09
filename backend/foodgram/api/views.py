@@ -62,12 +62,22 @@ class CustomUserViewSet(UserViewSet):
     @action(methods=['get'], detail=False,
             permission_classes=[IsAuthenticated])
     def me(self, request):
+        if hasattr(request.user, 'is_blocked') and request.user.is_blocked:
+            return Response(
+                {'detail': 'Ваш аккаунт заблокирован.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
 
     @action(methods=['put', 'delete'], detail=True,
             permission_classes=[IsAuthenticated])
     def avatar(self, request, id):
+        if hasattr(request.user, 'is_blocked') and request.user.is_blocked:
+            return Response(
+                {'detail': 'Ваш аккаунт заблокирован.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         if request.method == 'DELETE' and request.user.avatar:
             request.user.avatar.delete()
             request.user.save()
@@ -93,6 +103,11 @@ class CustomUserViewSet(UserViewSet):
     @action(methods=['post', 'delete'], detail=True,
             permission_classes=[IsAuthenticated])
     def subscribe(self, request, id):
+        if hasattr(request.user, 'is_blocked') and request.user.is_blocked:
+            return Response(
+                {'detail': 'Ваш аккаунт заблокирован.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         user = get_object_or_404(User, id=id)
         subscribe = request.user.subscribers.filter(subscribed=user)
         if request.method == 'POST':
@@ -126,7 +141,11 @@ class CustomUserViewSet(UserViewSet):
     @action(methods=['get'], detail=False,
             permission_classes=[IsAuthenticated])
     def subscriptions(self, request):
-
+        if hasattr(request.user, 'is_blocked') and request.user.is_blocked:
+            return Response(
+                {'detail': 'Ваш аккаунт заблокирован.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         subscribed_users_ids = Subscription.objects.filter(
             user=request.user
         ).values_list('subscribed_id', flat=True)
@@ -147,7 +166,7 @@ class CustomUserViewSet(UserViewSet):
 class RecipeFilter(FilterSet):
     is_favorited = BooleanFilter(method="filter_is_favorited")
     is_in_shopping_cart = BooleanFilter(method="filter_is_in_shopping_cart")
-    author = NumberFilter(field_name="author__id")
+    author = NumberFilter(method="filter_by_author")
 
     class Meta:
         model = Recipe
@@ -155,14 +174,22 @@ class RecipeFilter(FilterSet):
 
     def filter_is_favorited(self, queryset, name, value):
         user = self.request.user
-        if user.is_authenticated and value:
+        if user.is_authenticated and value and not user.is_blocked:
             return queryset.filter(users_in_favorite__user=user)
         return queryset
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
         user = self.request.user
-        if user.is_authenticated and value:
+        if user.is_authenticated and value and not user.is_blocked:
             return queryset.filter(user_in_shopping_carts__user=user)
+        return queryset
+
+    def filter_by_author(self, queryset, name, value):
+        user = self.request.user
+        if user.is_authenticated and not user.is_blocked:
+            author = get_object_or_404(User, id=value)
+            if author:
+                return queryset.filter(author_id=author)
         return queryset
 
 
@@ -249,7 +276,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(methods=["get"], detail=False,
             permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
-        # Get all recipes in the user's shopping cart with their ingredients
         recipes_in_cart = Recipe.objects.filter(
             user_in_shopping_carts__user=request.user
         ).prefetch_related('recipe_ingredients__ingredient')
@@ -257,7 +283,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         ingredients_summary = {}
 
         for recipe in recipes_in_cart:
-            # Access the recipe ingredients through the intermediate model
             for recipe_ingredient in recipe.recipe_ingredients.all():
                 ingredient = recipe_ingredient.ingredient
                 amount = recipe_ingredient.amount
@@ -282,10 +307,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
             file_content,
             content_type="text/plain; charset=utf-8"
         )
-        response['Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
+        response['Content-Disposition'] = (
+            'attachment; filename="shopping_list.txt"'
+        )
 
         return response
-    
+
     @action(methods=['get'], detail=True, url_path='get-link')
     def get_link(self, request, pk):
         get_object_or_404(Recipe, id=pk)

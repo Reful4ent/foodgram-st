@@ -39,6 +39,10 @@ class User(AbstractUser):
         null=True,
         upload_to="users/avatars/",
     )
+    is_blocked = models.BooleanField(
+        default=False,
+        verbose_name='Заблокирован'
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'last_name', 'first_name']
@@ -87,7 +91,7 @@ class Favorite(models.Model):
         'recipes.Recipe',
         on_delete=models.CASCADE,
         related_name='users_in_favorite',
-        verbose_name='Пользователь'
+        verbose_name='Рецепт'
     )
 
     class Meta:
