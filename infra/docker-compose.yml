@@ -1,17 +1,66 @@
 version: '3.3'
 services:
+  db:
+    container_name: foodgram-db
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h db -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  backend:
+    container_name: foodgram-backend
+    build:
+      context: ../backend/foodgram
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_HOST: db
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+    restart: always
+    ports:
+      - 8000:8000
+    volumes:
+      - mediavol:/app/media/
+      - staticvol:/app/static/
 
   frontend:
     container_name: foodgram-front
     build: ../frontend
+    command: npm run build
+    depends_on:
+      - backend
     volumes:
       - ../frontend/:/app/result_build/
+
   nginx:
     container_name: foodgram-proxy
     image: nginx:1.25.4-alpine
     ports:
       - "80:80"
+    depends_on:
+      - backend
+      - frontend
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ../frontend/build:/usr/share/nginx/html/
       - ../docs/:/usr/share/nginx/html/api/docs/
+
+volumes:
+  postgres-data:
+  mediavol:
+  staticvol:
