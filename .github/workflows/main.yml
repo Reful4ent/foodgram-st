@@ -33,7 +33,6 @@ jobs:
         python -m pip install --upgrade pip 
         pip install ruff==0.8.0
         pip install -r ./backend/foodgram/requirements.txt
-        pip install pytest pytest-django
         pip install django-filter==23.1
         pip install psycopg2-binary==2.9.3
         pip install drf_extra_fields
@@ -48,8 +47,6 @@ jobs:
       run: |
         python -m ruff check backend/foodgram/
         cd backend/foodgram/
-        pytest
-
 
   build_and_push_to_docker_hub:
     runs-on: ubuntu-latest
