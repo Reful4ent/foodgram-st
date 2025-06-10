@@ -29,19 +29,11 @@ class User(AbstractUser):
         max_length=150,
         verbose_name='Фамилия'
     )
-    is_subscribed = models.BooleanField(
-        verbose_name='Подписан на данного пользователя',
-        default=False
-    )
     avatar = models.ImageField(
         verbose_name='Изображение аватара',
         blank=True,
         null=True,
         upload_to="users/avatars/",
-    )
-    is_blocked = models.BooleanField(
-        default=False,
-        verbose_name='Заблокирован'
     )
 
     USERNAME_FIELD = 'email'
@@ -50,6 +42,7 @@ class User(AbstractUser):
     class Meta:
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
+        ordering = ['username']
 
     def __str__(self):
         return self.username
@@ -62,35 +55,35 @@ class Subscription(models.Model):
         related_name='user_subscribed',
         verbose_name='Пользователь'
     )
-    subscribed = models.ForeignKey(
+    following = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='subscribers',
-        verbose_name='Подписчик'
+        related_name='following',
+        verbose_name='Подписки авторов'
     )
 
     class Meta:
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
-        unique_together = ('user', 'subscribed')
+        unique_together = ('user', 'following')
         ordering = ['id']
 
     def __str__(self):
         return (f"{self.user.username} подписан "
-                f"на {self.subscribed.username}")
+                f"на {self.following.username}")
 
 
 class Favorite(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='user_recipe',
+        related_name='favourites',
         verbose_name='Пользователь'
     )
     recipe = models.ForeignKey(
         'recipes.Recipe',
         on_delete=models.CASCADE,
-        related_name='users_in_favorite',
+        related_name='in_favorites',
         verbose_name='Рецепт'
     )
 
@@ -109,13 +102,13 @@ class ShoppingCart(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='user_cart',
+        related_name='shop_cart',
         verbose_name='Пользователь'
     )
     recipe = models.ForeignKey(
         'recipes.Recipe',
         on_delete=models.CASCADE,
-        related_name="user_in_shopping_carts",
+        related_name="shopping_carts",
         verbose_name="Рецепт",
     )
 

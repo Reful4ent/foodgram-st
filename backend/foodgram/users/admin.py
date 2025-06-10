@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User, Subscription, Favorite, ShoppingCart
+from django.utils.safestring import mark_safe
 
 
 class SubscriptionInline(admin.TabularInline):
@@ -29,10 +30,14 @@ class ShoppingCartInline(admin.TabularInline):
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('email',
+    list_display = ('id',
                     'username',
-                    'first_name',
-                    'last_name')
+                    'get_fio',
+                    'email',
+                    'get_avatar',
+                    'get_recipes_count',
+                    'get_subscriptions_count',
+                    'get_subscribers_count')
     list_filter = ('email',
                    'username')
     inlines = [SubscriptionInline, FavoriteInline, ShoppingCartInline]
@@ -43,8 +48,7 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('first_name',
                        'last_name',
                        'avatar')
-        }),
-        ('Статус', {'fields': ('is_blocked',)}),
+        })
     )
 
     add_fieldsets = (
@@ -58,11 +62,35 @@ class UserAdmin(BaseUserAdmin):
         }),
     )
 
+    def get_fio(self, obj):
+        return f"{obj.first_name} {obj.last_name}"
+    get_fio.short_description = 'ФИО'
+
+    def get_recipes_count(self, obj):
+        return obj.recipes.count()
+    get_recipes_count.short_description = 'Рецепты'
+
+    def get_subscriptions_count(self, obj):
+        return obj.user_subscribed.count()
+    get_subscriptions_count.short_description = 'Подписки'
+
+    def get_subscribers_count(self, obj):
+        return obj.following.count()
+    get_subscribers_count.short_description = 'Подписчики'
+
+    @mark_safe
+    def avatar_html(self, obj):
+        if obj.avatar:
+            return (f'<img src="{obj.avatar.url}" width="50"'
+                    'height="50" style="border-radius:50%;">')
+        return ''
+    avatar_html.short_description = 'Аватар'
+
 
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'subscribed')
-    list_filter = ('user', 'subscribed')
-    search_fields = ('user__username', 'subscribed__username')
+    list_display = ('user', 'following')
+    list_filter = ('user', 'following')
+    search_fields = ('user__username', 'following__username')
 
 
 class FavoriteAdmin(admin.ModelAdmin):

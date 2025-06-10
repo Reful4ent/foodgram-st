@@ -62,22 +62,12 @@ class CustomUserViewSet(UserViewSet):
     @action(methods=['get'], detail=False,
             permission_classes=[IsAuthenticated])
     def me(self, request):
-        if hasattr(request.user, 'is_blocked') and request.user.is_blocked:
-            return Response(
-                {'detail': 'Ваш аккаунт заблокирован.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
 
     @action(methods=['put', 'delete'], detail=True,
             permission_classes=[IsAuthenticated])
     def avatar(self, request, id):
-        if hasattr(request.user, 'is_blocked') and request.user.is_blocked:
-            return Response(
-                {'detail': 'Ваш аккаунт заблокирован.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
         if request.method == 'DELETE' and request.user.avatar:
             request.user.avatar.delete()
             request.user.save()
@@ -103,18 +93,13 @@ class CustomUserViewSet(UserViewSet):
     @action(methods=['post', 'delete'], detail=True,
             permission_classes=[IsAuthenticated])
     def subscribe(self, request, id):
-        if hasattr(request.user, 'is_blocked') and request.user.is_blocked:
-            return Response(
-                {'detail': 'Ваш аккаунт заблокирован.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
         user = get_object_or_404(User, id=id)
-        subscribe = request.user.subscribers.filter(subscribed=user)
+        subscribe = request.user.subscribers.filter(following=user)
         if request.method == 'POST':
             subscribeSerializer = SubscribeSerializer(
                 data={
                     'user': request.user.id,
-                    'subscribed': user.id
+                    'following': user.id
                 },
                 context={
                     'request': request
@@ -141,15 +126,10 @@ class CustomUserViewSet(UserViewSet):
     @action(methods=['get'], detail=False,
             permission_classes=[IsAuthenticated])
     def subscriptions(self, request):
-        if hasattr(request.user, 'is_blocked') and request.user.is_blocked:
-            return Response(
-                {'detail': 'Ваш аккаунт заблокирован.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        subscribed_users_ids = Subscription.objects.filter(
+        following_users_ids = Subscription.objects.filter(
             user=request.user
-        ).values_list('subscribed_id', flat=True)
-        queryset = User.objects.filter(id__in=subscribed_users_ids)
+        ).values_list('following_id', flat=True)
+        queryset = User.objects.filter(id__in=following_users_ids)
 
         pages = self.paginate_queryset(queryset)
         serializer = UserSubscriptionRecipeSerializer(
@@ -174,19 +154,19 @@ class RecipeFilter(FilterSet):
 
     def filter_is_favorited(self, queryset, name, value):
         user = self.request.user
-        if user.is_authenticated and value and not user.is_blocked:
-            return queryset.filter(users_in_favorite__user=user)
+        if user.is_authenticated and value:
+            return queryset.filter(in_favorites__user=user)
         return queryset
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
         user = self.request.user
-        if user.is_authenticated and value and not user.is_blocked:
-            return queryset.filter(user_in_shopping_carts__user=user)
+        if user.is_authenticated and value:
+            return queryset.filter(shopping_carts__user=user)
         return queryset
 
     def filter_by_author(self, queryset, name, value):
         user = self.request.user
-        if user.is_authenticated and not user.is_blocked:
+        if user.is_authenticated:
             author = get_object_or_404(User, id=value)
             if author:
                 return queryset.filter(author_id=author)
@@ -210,7 +190,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=[IsAuthenticated])
     def favorite(self, request, pk):
         recipe = get_object_or_404(Recipe, id=pk)
-        favorite = request.user.user_recipe.filter(recipe=recipe)
+        favorite = request.user.favourites.filter(recipe=recipe)
         if request.method == 'POST':
             if favorite.exists():
                 return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -243,7 +223,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=[IsAuthenticated])
     def shopping_cart(self, request, pk):
         recipe = get_object_or_404(Recipe, id=pk)
-        shopcart = request.user.user_cart.filter(recipe=recipe)
+        shopcart = request.user.shop_cart.filter(recipe=recipe)
 
         if request.method == "POST":
             if shopcart.exists():
@@ -277,7 +257,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
         recipes_in_cart = Recipe.objects.filter(
-            user_in_shopping_carts__user=request.user
+            shopping_carts__user=request.user
         ).prefetch_related('recipe_ingredients__ingredient')
 
         ingredients_summary = {}

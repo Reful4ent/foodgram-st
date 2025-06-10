@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from django.core.management.utils import get_random_secret_key
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -23,12 +24,13 @@ DEBUG = True
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-o-6i@&h@)+&0^ci!ri3ltv4o%@h4ndv#rz2b%l9xvb@ur0v2*a'
+SECRET_KEY = os.getenv("SECRET_KEY") or get_random_secret_key()
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["foodgram-backend", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 
 
 # Application definition
@@ -117,11 +119,13 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru-ru'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Novosibirsk'
 
 USE_I18N = True
+
+USE_L10N = True
 
 USE_TZ = True
 

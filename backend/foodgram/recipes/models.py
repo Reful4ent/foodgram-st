@@ -27,6 +27,7 @@ class Recipe(models.Model):
     ingredients = models.ManyToManyField(
         Ingredient,
         through='RecipeIngredient',
+        related_name='recipes',
         verbose_name='Ингредиенты'
     )
     author = models.ForeignKey(
@@ -47,6 +48,7 @@ class RecipeIngredient(models.Model):
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
+        related_name='recipe_ingredients',
         verbose_name='Ингредиент'
     )
     amount = models.IntegerField(
@@ -58,7 +60,7 @@ class RecipeIngredient(models.Model):
         verbose_name = 'Ингредиент рецепта'
         verbose_name_plural = 'Ингредиенты рецептов'
         unique_together = ('recipe', 'ingredient')
-        ordering = ["ingredient__name"]
+        ordering = ('recipe', 'ingredient',)
 
     def __str__(self):
         return (f'{self.ingredient.name} в рецепте '

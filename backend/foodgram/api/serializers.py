@@ -5,12 +5,11 @@ from users.models import Subscription, Favorite, ShoppingCart
 from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer as BaseUserCreateSerializer
 from django.core.files.base import ContentFile
+from recipes.models import MIN_VALUE_COOKING_TIME, MIN_VALUE_INGREDIENTS_COUNT
 import base64
 
 
 User = get_user_model()
-MIN_VALUE_INGREDIENTS_COUNT = 1
-MIN_VALUE_COOKING_TIME = 1
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -44,8 +43,8 @@ class UserSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         if user:
             return (
-                user.is_authenticated and not user.is_blocked
-                and user.subscribers.filter(subscribed__exact=obj).exists()
+                user.is_authenticated
+                and user.subscribers.filter(following__exact=obj).exists()
             )
         return False
 
@@ -74,17 +73,17 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 class SubscribeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscription
-        fields = ("user", "subscribed")
+        fields = ("user", "following")
 
     def validate(self, data):
         user_id = data.get('user')
-        subscribed_id = data.get('subscribed')
+        following_id = data.get('following')
 
-        if user_id == subscribed_id:
+        if user_id == following_id:
             raise serializers.ValidationError('Нельзя подписаться на себя')
 
         if Subscription.objects.filter(user_id=user_id,
-                                       subscribed_id=subscribed_id).exists():
+                                       following_id=following_id).exists():
             raise serializers.ValidationError("Вы уже подписаны "
                                               "на этого пользователя")
 
@@ -105,7 +104,6 @@ class UserSubscriptionRecipeSerializer(serializers.ModelSerializer):
                   'is_subscribed',
                   'avatar',
                   'recipes',
-                  'is_blocked'
                   'recipes_count')
 
     def get_recipes(self, obj):
@@ -194,8 +192,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         if user:
             return (
-                user.is_authenticated and not user.is_blocked
-                and user.user_recipe.filter(recipe__exact=obj).exists()
+                user.is_authenticated
+                and user.favourites.filter(recipe__exact=obj).exists()
             )
         return False
 
@@ -203,8 +201,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         if user:
             return (
-                user.is_authenticated and not user.is_blocked
-                and user.user_cart.filter(recipe__exact=obj).exists()
+                user.is_authenticated
+                and user.shop_cart.filter(recipe__exact=obj).exists()
             )
         return False
 
