@@ -105,6 +105,6 @@ jobs:
       - name: Push to DockerHub
         uses: docker/build-push-action@v5
         with:
-          context: ./nginx/
+          context: ./infra/
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_gateway:latest 
