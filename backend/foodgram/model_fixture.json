@@ -1,0 +1,59 @@
+[
+{
+  "model": "users.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$P0Sk8wdCxXPA6UYcyIz8mf$Qpd3wrgf1WjNyNvwG023lW4TvjCPM6IUHxJmx7/qaE4=",
+    "last_login": "2025-06-11T08:11:53.089Z",
+    "is_superuser": false,
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-06-11T07:56:52.235Z",
+    "email": "vivanov@yandex.ru",
+    "username": "vasya.ivanov",
+    "first_name": "Вася",
+    "last_name": "Иванов",
+    "avatar": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "users.user",
+  "pk": 2,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$iIdsJ0sS8prQGhkSbCDMdZ$kIs/DfDu3sN/mpHjMuD89/1v/w2YwNhFpfq7paALykY=",
+    "last_login": "2025-06-11T07:56:53.806Z",
+    "is_superuser": false,
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-06-11T07:56:52.575Z",
+    "email": "second_user@email.org",
+    "username": "second-user",
+    "first_name": "Андрей",
+    "last_name": "Макаревский",
+    "avatar": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "users.user",
+  "pk": 3,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$ASiPrWIRDlkkfTrIvLn07h$rRNoOGaFRwIhF+7p2/foGs4okcvBklY30vEk57KEhwA=",
+    "last_login": null,
+    "is_superuser": false,
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-06-11T07:56:52.867Z",
+    "email": "third-user@user.ru",
+    "username": "third-user-username",
+    "first_name": "Гордон",
+    "last_name": "Рамзиков",
+    "avatar": "",
+    "groups": [],
+    "user_permissions": []
+  }
+}
+]

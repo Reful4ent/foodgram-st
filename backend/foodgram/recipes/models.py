@@ -60,7 +60,7 @@ class RecipeIngredient(models.Model):
         verbose_name = 'Ингредиент рецепта'
         verbose_name_plural = 'Ингредиенты рецептов'
         unique_together = ('recipe', 'ingredient')
-        ordering = ('recipe', 'ingredient',)
+        ordering = ('recipe', 'ingredient')
 
     def __str__(self):
         return (f'{self.ingredient.name} в рецепте '

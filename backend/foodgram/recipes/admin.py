@@ -65,6 +65,5 @@ class IngredientAdmin(admin.ModelAdmin):
     get_recipes_count.short_description = 'Рецептов'
 
 
-admin.site.register(Recipe, RecipeAdmin)
 admin.site.register(RecipeIngredient, IngredientRecipeAdmin)
 admin.site.register(Ingredient, IngredientAdmin)

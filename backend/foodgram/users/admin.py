@@ -60,7 +60,7 @@ class UserAdmin(BaseUserAdmin):
                        'first_name',
                        'last_name'),
         }),
-    )
+    
 
     def get_fio(self, obj):
         return f"{obj.first_name} {obj.last_name}"
@@ -79,12 +79,12 @@ class UserAdmin(BaseUserAdmin):
     get_subscribers_count.short_description = 'Подписчики'
 
     @mark_safe
-    def avatar_html(self, obj):
+    def get_avatar(self, obj):
         if obj.avatar:
             return (f'<img src="{obj.avatar.url}" width="50"'
                     'height="50" style="border-radius:50%;">')
         return ''
-    avatar_html.short_description = 'Аватар'
+    get_avatar.short_description = 'Аватар'
 
 
 class SubscriptionAdmin(admin.ModelAdmin):

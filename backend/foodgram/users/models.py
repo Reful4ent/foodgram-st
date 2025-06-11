@@ -59,7 +59,7 @@ class Subscription(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='following',
-        verbose_name='Подписки авторов'
+        verbose_name='Подписки авторов',
     )
 
     class Meta:

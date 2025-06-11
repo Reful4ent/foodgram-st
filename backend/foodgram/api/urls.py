@@ -1,7 +1,8 @@
 from .views import (
     CustomUserViewSet,
     IngredientViewSet,
-    RecipeViewSet
+    RecipeViewSet,
+    short_link_redirect
 )
 from rest_framework import routers
 from django.urls import path, include
@@ -14,5 +15,7 @@ router.register(r'recipes', RecipeViewSet, basename='recipes')
 urlpatterns = [
     path('auth/', include('djoser.urls.authtoken')),
     path("", include(router.urls)),
-    path("", include("djoser.urls")),
+    path('s/<str:short_code>/',
+         short_link_redirect,
+         name='short-link-redirect'),
 ]
