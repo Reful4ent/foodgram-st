@@ -32,29 +32,29 @@ class RecipeAdmin(admin.ModelAdmin):
         'get_image_preview',
     )
     search_fields = ('name', 'author__username')
-    list_filter = ('author', 'name')
+    list_filter = ('author',)
     empty_value_display = '-пусто-'
     inlines = [RecipeIngredientInline]
 
+    @admin.display(description='В избранном')
     def get_favorites_count(self, obj):
         return obj.in_favorites.count()
-    get_favorites_count.short_description = 'В избранном'
 
+    @admin.display(description='Ингредиенты')
     @mark_safe
     def get_ingredients_list(self, obj):
         ingredients = obj.recipe_ingredients.select_related('ingredient')
-        items = [(f'<li>{i.ingredient.name}'
-                  f' - {i.amount}</li>') for i in ingredients]
-        return f"<ul>{''.join(items)}</ul>" if items else "-"
-    get_ingredients_list.short_description = 'Ингредиенты'
+        items = [(f'<br>{i.ingredient.name}'
+                  f' - {i.amount}') for i in ingredients]
+        return f"<br>{''.join(items)}" if items else "-"
 
+    @admin.display(description='Изображение')
     @mark_safe
     def get_image_preview(self, obj):
         if obj.image:
             return (f'<img src="{obj.image.url}" width="100"'
                     ' style="max-height: 60px; object-fit: cover;" />')
         return "-"
-    get_image_preview.short_description = 'Изображение'
 
 
 class IngredientAdmin(admin.ModelAdmin):
@@ -62,9 +62,9 @@ class IngredientAdmin(admin.ModelAdmin):
     list_filter = ('measurement_unit',)
     search_fields = ('name', 'measurement_unit',)
 
+    @admin.display(description='Рецептов')
     def get_recipes_count(self, obj):
         return obj.recipes.count()
-    get_recipes_count.short_description = 'Рецептов'
 
 
 class SubscriptionInline(admin.TabularInline):
@@ -125,35 +125,35 @@ class UserAdmin(BaseUserAdmin):
         }),
     )
 
+    @admin.display(description='ФИО')
     def get_fio(self, obj):
         return f"{obj.first_name} {obj.last_name}"
-    get_fio.short_description = 'ФИО'
 
+    @admin.display(description='Рецепты')
     def get_recipes_count(self, obj):
         return obj.recipes.count()
-    get_recipes_count.short_description = 'Рецепты'
 
+    @admin.display(description='Подписки')
     def get_subscriptions_count(self, obj):
-        return obj.user_subscribed.count()
-    get_subscriptions_count.short_description = 'Подписки'
+        return obj.subscribed_users.count()
 
+    @admin.display(description='Подписчики')
     def get_subscribers_count(self, obj):
-        return obj.following.count()
-    get_subscribers_count.short_description = 'Подписчики'
+        return obj.author.count()
 
+    @admin.display(description='Аватар')
     @mark_safe
     def get_avatar(self, obj):
         if obj.avatar:
             return (f'<img src="{obj.avatar.url}" width="50"'
                     'height="50" style="border-radius:50%;">')
         return ''
-    get_avatar.short_description = 'Аватар'
 
 
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'following')
-    list_filter = ('user', 'following')
-    search_fields = ('user__username', 'following__username')
+    list_display = ('user', 'author')
+    list_filter = ('user', 'author')
+    search_fields = ('user__username', 'author__username')
 
 
 class FavoriteAdmin(admin.ModelAdmin):

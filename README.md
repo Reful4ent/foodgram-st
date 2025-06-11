@@ -42,9 +42,16 @@ SECRET_KEY=
 2. ``npm run dev`` - Запускаем проект.
 ### Start back
 1. ``pip install -r requirements.txt``
-2. ``python manage.py makemigrations``
-3. ``python manage.py migrate``
-4. ``python manage.py runserver``
+2. ``python manage.py migrate``
+3. ``python manage.py runserver``
 
 ### PROD VERSION
 ``docker-compose up --build`` - запуск контейнеров
+
+## 4. Загрузка данных в БД  
+
+После запуска контейнеров выполните команду для загрузки тестовых данных (ингредиенты, пользователи и рецепты):  
+
+```bash
+docker exec -it <container_name> python manage.py loaddata data/fixture.json
+```

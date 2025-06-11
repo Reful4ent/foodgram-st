@@ -1,4 +1,5 @@
 from django.http import FileResponse
+from http import HTTPStatus
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import (
     DjangoFilterBackend,
@@ -16,8 +17,7 @@ from rest_framework.permissions import (
     IsAuthenticated,
     AllowAny
 )
-from io import BytesIO
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404
 from .serializers import (
     RecipeShortSerializer,
     UserSerializer,
@@ -75,57 +75,53 @@ class CustomUserViewSet(UserViewSet):
             request.user.avatar.delete()
             request.user.save()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        if request.method == 'PUT':
-            if not request.data:
-                return Response(status=status.HTTP_400_BAD_REQUEST)
-            avatarUploadSerializer = AvatarUploadSerializer(
-                request.user,
-                data=request.data,
-                partial=True,
-                context={'request': request}
-            )
-            avatarUploadSerializer.is_valid(raise_exception=True)
-            avatarUploadSerializer.save()
+        if not request.data:
             return Response(
-                {"avatar": avatarUploadSerializer.data.get("avatar")},
-                status=status.HTTP_200_OK
+                {'error': 'Отсутствуют данные'},
+                status=status.HTTP_400_BAD_REQUEST
             )
-
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        avatarUploadSerializer = AvatarUploadSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
+        avatarUploadSerializer.is_valid(raise_exception=True)
+        avatarUploadSerializer.save()
+        return Response(
+            {"avatar": avatarUploadSerializer.data.get("avatar")},
+            status=status.HTTP_200_OK
+        )
 
     @action(methods=['post', 'delete'], detail=True,
             permission_classes=[IsAuthenticated])
     def subscribe(self, request, id):
         user = get_object_or_404(User, id=id)
-        subscribe = request.user.following.filter(following=user)
+        subscribe = request.user.author.filter(author=user)
 
         if request.method == 'POST':
             user_id = request.user.id
-            following_id = user.id
+            author_id = user.id
 
-            if user_id == following_id:
+            if user_id == author_id:
                 return Response({'error': 'Нельзя подписаться на себя'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            if Subscription.objects.filter(
+            subscription, created = Subscription.objects.get_or_create(
                 user_id=user_id,
-                following_id=following_id
-            ).exists():
-                return Response({
-                    'error': 'Вы уже подписаны на этого пользователя'},
+                author_id=author_id
+            )
+
+            if not created:
+                return Response(
+                    {'error': f'Вы уже подписаны на пользователя {subscription.user}'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            Subscription.objects.create(
-                user_id=user_id,
-                following_id=following_id
-            )
 
             userSubRecipeSerializer = UserSubscriptionRecipeSerializer(
                 user,
                 context={
                     'request': request,
-                    'recipes_limit': request.query_params.get('recipes_limit')
                 }
             )
             return Response(userSubRecipeSerializer.data,
@@ -133,15 +129,18 @@ class CustomUserViewSet(UserViewSet):
         if subscribe.exists():
             subscribe.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {'error': 'Нельзя удалить отсутствующую подписку'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     @action(methods=['get'], detail=False,
             permission_classes=[IsAuthenticated])
     def subscriptions(self, request):
-        following_users_ids = Subscription.objects.filter(
+        author_users_ids = Subscription.objects.filter(
             user=request.user
-        ).values_list('following_id', flat=True)
-        queryset = User.objects.filter(id__in=following_users_ids)
+        ).values_list('author_id', flat=True)
+        queryset = User.objects.filter(id__in=author_users_ids)
 
         pages = self.paginate_queryset(queryset)
         serializer = UserSubscriptionRecipeSerializer(
@@ -199,18 +198,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return context
 
     @staticmethod
-    def _toggle_item(request, pk, model, serializer_class, related_name):
+    def _toggle_item(request, pk, model):
         recipe = get_object_or_404(Recipe, id=pk)
-        relation = getattr(request.user, related_name).filter(recipe=recipe)
+        relation = getattr(
+            request.user,
+            model._meta.default_related_name
+        )
+
         if request.method == 'POST':
-            if relation.exists():
-                return Response(status=status.HTTP_400_BAD_REQUEST)
-            model.objects.create(
-                user=request.user,
-                recipe=recipe
-            )
-            serializer = serializer_class(
-                recipe, 
+            _, created = relation.get_or_create(recipe=recipe)
+        
+            if not created:
+                return Response(
+                    {'error': 'Уже добавлен'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            serializer = RecipeShortSerializer(
+                recipe,
                 context={
                     'request': request
                 }
@@ -220,7 +224,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if relation.exists():
             relation.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {'error': 'Нельзя удалить несуществующие данные'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     @action(methods=['post', 'delete'], detail=True,
             permission_classes=[IsAuthenticated])
@@ -228,9 +235,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return self._toggle_item(
             request,
             pk,
-            Favorite,
-            RecipeShortSerializer,
-            'favourites'
+            Favorite
         )
 
     @action(methods=['post', 'delete'], detail=True,
@@ -239,9 +244,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return self._toggle_item(
             request,
             pk,
-            ShoppingCart,
-            RecipeShortSerializer,
-            'shop_cart')
+            ShoppingCart
+        )
 
     @action(methods=["get"], detail=False,
             permission_classes=[IsAuthenticated])
@@ -274,9 +278,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
         shopping_list = [
             f"Список покупок (составлено: {date_str}):"
         ] + [
-            f"{idx + 1}. {name} - {data['amount']} {data['unit']}"
+            f"{idx}. {name} - {data['amount']} {data['unit']}"
             f" (для рецептов: {', '.join(data['recipes'])})"
-            for idx, (name, data) in enumerate(ingredients_summary.items())
+            for idx, (name, data) in enumerate(ingredients_summary.items(),
+                                               start=1)
         ]
 
         report = '\n'.join([
@@ -287,13 +292,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             *recipes_list
         ])
 
-        file_content = report.encode('utf-8')  # преобразуем в bytes
-        file_buffer = BytesIO()
-        file_buffer.write(file_content)
-        file_buffer.seek(0)
-
         response = FileResponse(
-            file_buffer,
+            report,
             as_attachment=True,
             filename='shopping_list.txt'
         )
@@ -302,11 +302,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(methods=['get'], detail=True, url_path='get-link')
     def get_link(self, request, pk):
-        get_object_or_404(Recipe, id=pk)
-        short_link = f"https://foodgram.example.org/s/{pk}"
-        return Response({'short-link': short_link}, status=status.HTTP_200_OK)
-
-
-def short_link_redirect(request, short_code):
-    recipe = get_object_or_404(Recipe, id=short_code)
-    return redirect(f'/recipes/{recipe.id}/')
+        recipe = self.get_object()
+        short_code = ''.join(
+            [c for c in recipe.name if c.isalnum()])[:6] or 'default'
+        return Response(
+            {'short-link': f'https://foodgram.ru/s/ {short_code}'},
+            status=HTTPStatus.OK
+        )
