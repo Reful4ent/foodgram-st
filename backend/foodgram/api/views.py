@@ -26,9 +26,13 @@ from .serializers import (
     UserSubscriptionRecipeSerializer,
     AvatarUploadSerializer,
 )
-from users.models import Subscription, Favorite, ShoppingCart
-from ingredients.models import Ingredient
-from recipes.models import Recipe
+from recipes.models import (
+    Recipe,
+    Ingredient,
+    Subscription,
+    Favorite,
+    ShoppingCart
+)
 from .permission import IsAuthorOrReadOnly
 from datetime import datetime
 
