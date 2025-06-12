@@ -1,4 +1,5 @@
 from django.http import FileResponse
+from django.urls import reverse
 from http import HTTPStatus
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import (
@@ -35,6 +36,7 @@ from recipes.models import (
 )
 from .permission import IsAuthorOrReadOnly
 from datetime import datetime
+
 
 
 User = get_user_model()
@@ -302,8 +304,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(methods=['get'], detail=True, url_path='get-link')
     def get_link(self, request, pk):
-        base_url = request.build_absolute_uri()
         return Response(
-            {'short-link': f'{base_url.rstrip("/")}/s/{pk}'},
+            {'short-link': f'{request.build_absolute_uri(reverse('recipes-list', kwargs={'pk': pk}))}'},
             status=HTTPStatus.OK
         )

@@ -57,7 +57,7 @@ class AvatarUploadSerializer(serializers.ModelSerializer):
         fields = ('avatar',)
 
 
-class UserSerializer(DjoserUserSerializer, serializers.ReadOnlyField):
+class UserSerializer(DjoserUserSerializer):
     is_subscribed = serializers.SerializerMethodField('get_is_subscribed',
                                                       read_only=True)
     avatar = serializers.ImageField(read_only=True)
@@ -67,6 +67,7 @@ class UserSerializer(DjoserUserSerializer, serializers.ReadOnlyField):
             'is_subscribed',
             'avatar'
         )
+        read_only_fields = fields
 
     def get_is_subscribed(self, obj):
         user = self.context['request'].user
@@ -96,6 +97,7 @@ class UserSubscriptionRecipeSerializer(UserSerializer):
             'recipes',
             'recipes_count'
         )
+        read_only_fields = fields
 
     def get_recipes(self, obj):
         request = self.context.get('request')
@@ -112,14 +114,15 @@ class UserSubscriptionRecipeSerializer(UserSerializer):
         ).data
 
 
-class RecipeShortSerializer(serializers.ReadOnlyField):
+class RecipeShortSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Recipe
         fields = ("id", "name", "image", "cooking_time")
+        read_only_fields = fields
 
 
-class RecipeIngredientSerializer(serializers.ReadOnlyField):
+class RecipeIngredientSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source='ingredient.id', read_only=True)
     name = serializers.ReadOnlyField(source='ingredient.name', read_only=True)
     measurement_unit = serializers.ReadOnlyField(
@@ -131,6 +134,7 @@ class RecipeIngredientSerializer(serializers.ReadOnlyField):
                   'name',
                   'measurement_unit',
                   'amount')
+        read_only_fields = fields
 
 
 class RecipeIngredientCreateSerializer(serializers.ModelSerializer):

@@ -46,7 +46,7 @@ class RecipeAdmin(admin.ModelAdmin):
         ingredients = obj.recipe_ingredients.select_related('ingredient')
         items = [(f'{i.ingredient.name} - {i.ingredient.measurement_unit}'
                   f' - {i.amount}') for i in ingredients]
-        return f"{'<br>'.join(items)}"
+        return '<br>'.join(items)
 
     @admin.display(description='Изображение')
     @mark_safe

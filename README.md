@@ -51,8 +51,7 @@ SECRET_KEY=
 ## 4. Загрузка данных в БД  
 
 После запуска контейнеров выполните команду для загрузки тестовых данных (ингредиенты):
-##### Я не понимаю про какую команду вы уже 3 раз говорите, я не понимаю сути того что я сделал не так
 
 ```bash
-docker exec -it <container_name> python manage.py loaddata data/ingredients.json
+docker exec foodgram-backend python manage.py import_ingredients
 ```
