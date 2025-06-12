@@ -7,7 +7,6 @@ from recipes.models import (
     MIN_VALUE_INGREDIENTS_COUNT
 )
 from django.contrib.auth import get_user_model
-from djoser.serializers import UserCreateSerializer
 from djoser.serializers import UserSerializer as DjoserUserSerializer
 from django.core.files.base import ContentFile
 import base64
@@ -58,12 +57,7 @@ class AvatarUploadSerializer(serializers.ModelSerializer):
         fields = ('avatar',)
 
 
-class UserSerializer(DjoserUserSerializer):
-    id = serializers.IntegerField(read_only=True)
-    email = serializers.EmailField(read_only=True)
-    username = serializers.CharField(read_only=True)
-    first_name = serializers.CharField(read_only=True)
-    last_name = serializers.CharField(read_only=True)
+class UserSerializer(DjoserUserSerializer, serializers.ReadOnlyField):
     is_subscribed = serializers.SerializerMethodField('get_is_subscribed',
                                                       read_only=True)
     avatar = serializers.ImageField(read_only=True)
@@ -83,13 +77,6 @@ class UserSerializer(DjoserUserSerializer):
 
 
 class UserSubscriptionRecipeSerializer(UserSerializer):
-    id = serializers.IntegerField(read_only=True)
-    email = serializers.EmailField(read_only=True)
-    username = serializers.CharField(read_only=True)
-    first_name = serializers.CharField(read_only=True)
-    last_name = serializers.CharField(read_only=True)
-    is_subscribed = serializers.BooleanField(read_only=True)
-    avatar = serializers.ImageField(read_only=True)
     recipes = serializers.SerializerMethodField('get_recipes', read_only=True)
     recipes_count = serializers.IntegerField(
         source='recipes.count',
@@ -125,23 +112,18 @@ class UserSubscriptionRecipeSerializer(UserSerializer):
         ).data
 
 
-class RecipeShortSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField(read_only=True)
-    image = serializers.ImageField(read_only=True)
-    cooking_time = serializers.IntegerField(read_only=True)
+class RecipeShortSerializer(serializers.ReadOnlyField):
 
     class Meta:
         model = Recipe
         fields = ("id", "name", "image", "cooking_time")
 
 
-class RecipeIngredientSerializer(serializers.ModelSerializer):
+class RecipeIngredientSerializer(serializers.ReadOnlyField):
     id = serializers.ReadOnlyField(source='ingredient.id', read_only=True)
     name = serializers.ReadOnlyField(source='ingredient.name', read_only=True)
     measurement_unit = serializers.ReadOnlyField(
         source='ingredient.measurement_unit', read_only=True)
-    amount = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = RecipeIngredient
