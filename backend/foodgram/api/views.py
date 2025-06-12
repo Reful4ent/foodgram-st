@@ -152,3 +152,158 @@ class CustomUserViewSet(UserViewSet):
         )
 
         return self.get_paginated_response(serializer.data)
+
+
+class RecipeFilter(FilterSet):
+    is_favorited = BooleanFilter(method="filter_is_favorited")
+    is_in_shopping_cart = BooleanFilter(method="filter_is_in_shopping_cart")
+    author = NumberFilter(method="filter_by_author")
+
+    class Meta:
+        model = Recipe
+        fields = ['is_favorited', 'is_in_shopping_cart', 'author']
+
+    def filter_is_favorited(self, queryset, name, value):
+        user = self.request.user
+        if user.is_authenticated and value:
+            return queryset.filter(in_favorites__user=user)
+        return queryset
+
+    def filter_is_in_shopping_cart(self, queryset, name, value):
+        user = self.request.user
+        if user.is_authenticated and value:
+            return queryset.filter(shopping_carts__user=user)
+        return queryset
+
+    def filter_by_author(self, queryset, name, value):
+        user = self.request.user
+        if user.is_authenticated:
+            author = get_object_or_404(User, id=value)
+            if author:
+                return queryset.filter(author_id=author)
+        return queryset
+
+
+class RecipeViewSet(viewsets.ModelViewSet):
+    queryset = Recipe.objects.all()
+    pagination_class = StandardResultsSetPagination
+    serializer_class = RecipeSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = RecipeFilter
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
+    @staticmethod
+    def _toggle_item(request, pk, model):
+        recipe = get_object_or_404(Recipe, id=pk)
+        relation = getattr(
+            request.user,
+            model._meta.default_related_name
+        )
+
+        if request.method == 'POST':
+            _, created = relation.get_or_create(recipe=recipe)
+        
+            if not created:
+                return Response(
+                    {'error': f'Уже добавлен {recipe.name} в {model._meta.default_related_name}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            serializer = RecipeShortSerializer(
+                recipe,
+                context={
+                    'request': request
+                }
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        if relation.exists():
+            relation.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {'error': f'Нельзя удалить {recipe.name} из {model._meta.default_related_name}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    @action(methods=['post', 'delete'], detail=True,
+            permission_classes=[IsAuthenticated])
+    def favorite(self, request, pk):
+        return self._toggle_item(
+            request,
+            pk,
+            Favorite
+        )
+
+    @action(methods=['post', 'delete'], detail=True,
+            permission_classes=[IsAuthenticated])
+    def shopping_cart(self, request, pk):
+        return self._toggle_item(
+            request,
+            pk,
+            ShoppingCart
+        )
+
+    @action(methods=["get"], detail=False,
+            permission_classes=[IsAuthenticated])
+    def download_shopping_cart(self, request):
+        recipes_in_cart = Recipe.objects.filter(
+            shopping_carts__user=request.user
+        ).prefetch_related('recipe_ingredients__ingredient')
+
+        ingredients_summary = {}
+        recipes_list = []
+
+        for recipe in recipes_in_cart:
+            recipes_list.append(f"{recipe.name} "
+                                f"(автор: {recipe.author.username})")
+            for recipe_ingredient in recipe.recipe_ingredients.all():
+                ingredient = recipe_ingredient.ingredient
+                amount = recipe_ingredient.amount
+                name = ingredient.name.capitalize()
+                unit = ingredient.measurement_unit
+                if name not in ingredients_summary:
+                    ingredients_summary[name] = {
+                        'amount': 0,
+                        'unit': unit,
+                        'recipes': set()
+                    }
+                ingredients_summary[name]['amount'] += amount
+                ingredients_summary[name]['recipes'].add(f"{recipe.name} (автор: {recipe.author.username})")
+
+        date_str = datetime.now().strftime("%d.%m.%Y")
+        shopping_list = [
+            f"Список покупок (составлено: {date_str}):"
+        ] + [
+            f"{idx}. {name} - {data['amount']} {data['unit']}"
+            f" (для рецептов: {', '.join(data['recipes'])})"
+            for idx, (name, data) in enumerate(ingredients_summary.items(),
+                                               start=1)
+        ]
+
+        report = '\n'.join([
+            'Отчет по списку покупок',
+            'Продукты:',
+            *shopping_list,
+            'Рецепты в корзине:',
+            *recipes_list
+        ])
+
+        response = FileResponse(
+            report,
+            as_attachment=True,
+            filename='shopping_list.txt'
+        )
+
+        return response
+
+    @action(methods=['get'], detail=True, url_path='get-link')
+    def get_link(self, request, pk):
+        base_url = request.build_absolute_uri()
+        return Response(
+            {'short-link': f'{base_url.rstrip("/")}/s/{pk}'},
+            status=HTTPStatus.OK
+        )
